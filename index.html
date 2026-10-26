@@ -134,8 +134,10 @@ button.danger.armed{background:var(--bad);color:#fff}
   <section class="card">
     <h2>Work PC</h2>
     <div class="row" style="margin-top:0">
+      <button id="rustdesk">Start RustDesk</button>
       <button class="danger" id="shutNow">Shut down now</button>
-      <span class="hint" id="shutHint">Starts a 60-second countdown. You can cancel it here or on the work PC.</span>
+    </div>
+    <div class="hint" id="shutHint">Shut down starts a 60-second countdown. You can cancel it here or on the work PC.
     </div>
   </section>
 
@@ -311,10 +313,11 @@ const GS = (() => {
       S.agentSeen = 0; S.offline = "The app on the work PC was closed, or the PC is shutting down."; S.waits.clear();
       log("work PC: app closed"); return;
     }
-    if (live && ["state", "ack", "diag", "shutdown_warning"].includes(m.type)) {
+    if (live && ["state", "ack", "diag", "shutdown_warning", "info"].includes(m.type)) {
       if (S.offline || !S.agentSeen) log("work PC answered - online");
       S.agentSeen = Date.now(); S.offline = ""; S.waits.clear();
     }
+    if (m.type === "info" && live) log("work PC: " + m.text);
     if (m.type === "shutdown_warning" && live) log("work PC: scheduled shutdown in 60 seconds (Settings > Cancel shutdown to stop it)");
     if (m.type === "diag" && live) {
       if (!S.diagParts || m.part === 0) S.diagParts = {};
@@ -367,7 +370,7 @@ const GS = (() => {
     }
     if (!quiet) {
       const t = {set_status: `set status -> ${cmd.status}`, set_schedule: "timers updated", in_minutes: `${cmd.status} in ${cmd.minutes} min`,
-        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown", shutdown_now: "shut down the work PC now (60-second countdown)",
+        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown", shutdown_now: "shut down the work PC now (60-second countdown)", start_rustdesk: "start RustDesk on the work PC",
         diag: "asked the work PC for diagnostics (takes up to 30 seconds)"}[cmd.type];
       log(cmd.type === "diag" ? t : "sent: " + (t || cmd.type));
     }
@@ -623,6 +626,7 @@ $("shutNow").onclick = () => {
   cmd({type: "shutdown_now"});
 };
 $("shutCancel").onclick = () => cmd({type: "cancel_shutdown"});
+$("rustdesk").onclick = () => cmd({type: "start_rustdesk"});
 $("refresh").onclick = () => cmd({type: "ping"});
 $("diagBtn").onclick = () => cmd({type: "diag"});
 $("setOther").onclick = () => setStatus($("other").value);
