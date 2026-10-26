@@ -22,6 +22,7 @@
   --bg:#15181e;--card:#1e222a;--ink:#e8ebf1;--muted:#99a1b2;--line:#2d323c;--chip:#272c35;
   --shadow:0 1px 2px rgba(0,0,0,.3);--accent:#6b9cff}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,sans-serif}
 main{max-width:780px;margin:0 auto;padding-block:calc(14px + env(safe-area-inset-top,0px)) calc(28px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body{-webkit-tap-highlight-color:transparent}
@@ -77,6 +78,10 @@ details summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:12px
 .code{font:600 20px Consolas,monospace;letter-spacing:.06em;user-select:all}
 .hint{color:var(--muted);font-size:13px;margin:4px 0}
 .set{margin-top:18px}
+.shutbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;padding:12px 14px;border-radius:10px;border:1px solid var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--card))}
+.shutbar b{font-variant-numeric:tabular-nums}
+button.danger{border-color:var(--bad);color:var(--bad)}
+button.danger.armed{background:var(--bad);color:#fff}
 .tag{font-size:11px;background:var(--chip);color:var(--muted);border-radius:6px;padding:1px 6px;margin-left:6px}
 @media (max-width:560px){.quick{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -100,6 +105,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:12px
       <button id="refresh">Check now</button>
     </div>
     <div class="chans" id="chans"></div>
+    <div class="shutbar" id="shutBar" hidden><span>Work PC shuts down in <b id="shutLeft">0:60</b></span><span class="spacer"></span><button class="primary" id="shutCancel">Cancel shutdown</button></div>
     <div class="nextline"><span class="sub" id="next"></span><button class="link" id="cancelRet" style="display:none">Cancel automatic Pause</button></div>
   </section>
 
@@ -123,6 +129,14 @@ details summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:12px
       <span class="preview" id="inPreview"></span>
     </div>
     <div class="hint" id="durHint"></div>
+  </section>
+
+  <section class="card">
+    <h2>Work PC</h2>
+    <div class="row" style="margin-top:0">
+      <button class="danger" id="shutNow">Shut down now</button>
+      <span class="hint" id="shutHint">Starts a 60-second countdown. You can cancel it here or on the work PC.</span>
+    </div>
   </section>
 
   <section class="card">
@@ -172,6 +186,12 @@ details summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:12px
       <div class="set">
         <label class="sw"><span class="switch"><input type="checkbox" id="awake"><span></span></span> <b>Keep the work PC awake</b></label>
         <div class="hint">Stops the work PC from sleeping or locking when nobody is using it.</div>
+      </div>
+      <div class="set" hidden>
+        <b>When I close this window</b>
+        <div class="row" style="margin-top:4px">
+          <select id="closeAction"><option value="">Ask me</option><option value="tray">Keep running in the tray</option><option value="exit">Exit the app</option></select>
+        </div>
       </div>
       <div class="set">
         <b>Click speed</b>
@@ -347,7 +367,7 @@ const GS = (() => {
     }
     if (!quiet) {
       const t = {set_status: `set status -> ${cmd.status}`, set_schedule: "timers updated", in_minutes: `${cmd.status} in ${cmd.minutes} min`,
-        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown",
+        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown", shutdown_now: "shut down the work PC now (60-second countdown)",
         diag: "asked the work PC for diagnostics (takes up to 30 seconds)"}[cmd.type];
       log(cmd.type === "diag" ? t : "sent: " + (t || cmd.type));
     }
@@ -542,6 +562,10 @@ function renderHeader() {
     if (left > 0) next += "  ·  " + short(st.pending_return.from) + " ends in " + fmtDur(left);
   }
   $("next").textContent = next;
+  const sd = st && st.shutdown_deadline;
+  const left = sd ? Math.round(sd - workNow()) : 0;
+  $("shutBar").hidden = !(sd && left > -5 && v.online);
+  if (sd) $("shutLeft").textContent = Math.floor(Math.max(0, left) / 60) + ":" + pad(Math.max(0, left) % 60);
   $("cancelRet").style.display = st && st.pending_return ? "" : "none";
 
   // "Later" preview, counted from the start of the current minute
@@ -574,6 +598,7 @@ function render(v) {
   if (atEnd) log.scrollTop = log.scrollHeight;
   $("code").textContent = v.code || "not set";
   $("setup").hidden = !v.no_code;
+  if (document.activeElement !== $("closeAction")) $("closeAction").value = v.close_action || "";
   $("diag").textContent = v.diag || "";
   if (!editing.server) $("server").value = v.server;
   renderHeader();
@@ -586,6 +611,18 @@ async function poll() {
 }
 setInterval(renderHeader, 1000);
 
+let shutArm = 0;
+$("shutNow").onclick = () => {
+  const b = $("shutNow");
+  if (Date.now() - shutArm > 4000) {
+    shutArm = Date.now(); b.textContent = "Tap again to shut down"; b.classList.add("armed");
+    setTimeout(() => { if (Date.now() - shutArm >= 4000) { b.textContent = "Shut down now"; b.classList.remove("armed"); } }, 4100);
+    return;
+  }
+  shutArm = 0; b.textContent = "Shut down now"; b.classList.remove("armed");
+  cmd({type: "shutdown_now"});
+};
+$("shutCancel").onclick = () => cmd({type: "cancel_shutdown"});
 $("refresh").onclick = () => cmd({type: "ping"});
 $("diagBtn").onclick = () => cmd({type: "diag"});
 $("setOther").onclick = () => setStatus($("other").value);
@@ -612,6 +649,7 @@ $("tAdd").onclick = () => {
   pushTimers();
 };
 $("schedOn").onchange = e => { schedOn = e.target.checked; pushTimers(); };
+$("closeAction").onchange = e => api("/api/closeaction", {action: e.target.value});
 $("speed").onchange = e => cmd({type: "set_settings", click_delay_ms: parseInt(e.target.value, 10)});
 $("shutOn").onchange = e => cmd({type: "set_settings", shutdown_on: e.target.checked});
 $("shutAt").onfocus = () => editing.shut = true;
