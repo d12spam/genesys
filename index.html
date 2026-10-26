@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Genesys Status</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Genesys">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#15181e">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232eaa50'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f4f5f7;--card:#ffffff;--ink:#1d2330;--muted:#6b7385;--line:#e3e6ec;
+  --ready:#2eaa50;--ready-ink:#fff;--nr:#f0a028;--nr-ink:#231a05;--bad:#d64545;--accent:#2f6fde;
+  --chip:#eef1f6;--shadow:0 1px 2px rgba(20,30,50,.06),0 4px 14px rgba(20,30,50,.05);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#15181e;--card:#1e222a;--ink:#e8ebf1;--muted:#99a1b2;--line:#2d323c;--chip:#272c35;
+  --shadow:0 1px 2px rgba(0,0,0,.3);--accent:#6b9cff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,sans-serif}
+main{max-width:780px;margin:0 auto;padding-block:calc(14px + env(safe-area-inset-top,0px)) calc(28px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body{-webkit-tap-highlight-color:transparent}
+.setup input{font:600 20px Consolas,ui-monospace,monospace;letter-spacing:.06em;width:100%;max-width:320px;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:16px 18px;margin-bottom:14px}
+h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:600}
+h2 span{text-transform:none;letter-spacing:0;font-weight:400}
+.head{display:flex;align-items:center;gap:14px}
+.dot{width:14px;height:14px;border-radius:50%;background:#999;flex:none}
+.dot.on{background:var(--ready)}.dot.off{background:var(--bad)}
+.conn{font-weight:600;font-size:15px}
+.sub{color:var(--muted);font-size:13px}
+.chans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:14px}
+.chan{background:var(--chip);border-radius:10px;padding:10px 14px;border-left:4px solid var(--muted)}
+.chan.r{border-left-color:var(--ready)}.chan.n{border-left-color:var(--nr)}
+.chan .k{font-size:12px;color:var(--muted);font-weight:600;text-transform:capitalize}
+.chan .v{font-weight:600;font-size:15px}
+.chan .t:empty{display:none}
+.chan .t{font-variant-numeric:tabular-nums;font-size:22px;font-weight:600;letter-spacing:.02em;margin-top:2px}
+.nextline{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.link{border:none;background:none;color:var(--accent);padding:0 4px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.quick button{padding:16px 8px;font-size:16px;font-weight:600;border:none}
+.q-ready{background:var(--ready);color:var(--ready-ink)}
+.q-nr{background:var(--nr);color:var(--nr-ink)}
+.quick button:hover{filter:brightness(1.07)}
+.flash{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+select,input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+input[type=number]{width:72px}
+.preview{color:var(--muted)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line)}
+tr.offr td{opacity:.5}
+td.time{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px}
+.empty{color:var(--muted);padding:14px 8px}
+.x{border:none;background:none;color:var(--muted);font-size:18px;padding:2px 8px}
+.x:hover{color:var(--bad)}
+.switch{position:relative;width:38px;height:22px;flex:none;display:inline-block}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:var(--line);border-radius:22px;transition:.15s;cursor:pointer}
+.switch span:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.switch input:checked+span{background:var(--ready)}
+.switch input:checked+span:before{transform:translateX(16px)}
+label.sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.log{font:12px/1.5 Consolas,monospace;color:var(--muted);max-height:150px;overflow:auto;white-space:pre-wrap;margin:0}
+details summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.code{font:600 20px Consolas,monospace;letter-spacing:.06em;user-select:all}
+.hint{color:var(--muted);font-size:13px;margin:4px 0}
+.set{margin-top:18px}
+.tag{font-size:11px;background:var(--chip);color:var(--muted);border-radius:6px;padding:1px 6px;margin-left:6px}
+@media (max-width:560px){.quick{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<main>
+  <section class="card setup" id="setup" hidden>
+    <h2>Connect to your work PC</h2>
+    <div class="hint">Enter the pairing code shown in Settings in the Genesys Status Control app on your PC. You only need to do this once on this phone.</div>
+    <div class="row"><input id="setupCode" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="primary" id="setupGo">Connect</button></div>
+    <div class="hint" id="setupErr"></div>
+  </section>
+  <section class="card">
+    <div class="head">
+      <div class="dot" id="dot"></div>
+      <div>
+        <div class="conn" id="conn">Connecting…</div>
+        <div class="sub" id="connSub"></div>
+      </div>
+      <div class="spacer"></div>
+      <button id="refresh">Check now</button>
+    </div>
+    <div class="chans" id="chans"></div>
+    <div class="nextline"><span class="sub" id="next"></span><button class="link" id="cancelRet" style="display:none">Cancel automatic Pause</button></div>
+  </section>
+
+  <section class="card">
+    <h2>Set status now</h2>
+    <div class="quick" id="quick"></div>
+    <div class="row">
+      <select id="other"></select>
+      <button id="setOther">Set</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Later</h2>
+    <div class="row" style="margin-top:0">
+      <select id="inStatus"></select>
+      <span>in</span>
+      <input type="number" id="inMin" value="3" min="1" max="600">
+      <span>minutes</span>
+      <button class="primary" id="inGo">Start</button>
+      <span class="preview" id="inPreview"></span>
+    </div>
+    <div class="hint" id="durHint"></div>
+  </section>
+
+  <section class="card">
+    <h2>Timers <span>— run on the work PC, even when this PC is off</span></h2>
+    <table>
+      <thead><tr><th style="width:100px">Time</th><th>Status</th><th style="width:140px">Repeat</th><th style="width:60px">On</th><th style="width:40px"></th></tr></thead>
+      <tbody id="timers"></tbody>
+    </table>
+    <div class="row">
+      <input type="time" id="tTime" value="13:00">
+      <select id="tStatus"></select>
+      <select id="tRepeat">
+        <option value="daily">Every day</option>
+        <option value="once">Once</option>
+      </select>
+      <button id="tAdd">Add timer</button>
+    </div>
+    <div class="hint">New timers are added switched off. Turn them on with the switch.</div>
+    <div class="row" style="margin-top:10px">
+      <label class="sw"><span class="switch"><input type="checkbox" id="schedOn" checked><span></span></span> All timers active</label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Activity</h2>
+    <pre class="log" id="log"></pre>
+  </section>
+
+  <section class="card">
+    <h2>Diagnostics</h2>
+    <div class="row" style="margin-top:0"><button id="diagBtn">Get diagnostics</button><span class="hint">Shows what the work app reads from Genesys and its recent log.</span></div>
+    <pre class="log" id="diag" style="max-height:none;margin-top:10px;color:var(--ink)"></pre>
+  </section>
+
+  <section class="card">
+    <details id="settings">
+      <summary>Settings</summary>
+      <div class="set">
+        <b>Back to Pause after</b>
+        <div class="hint">When one of these statuses is set by this app, it switches to Not Ready - Pause when the time is up.</div>
+        <div class="row" style="margin-top:4px">
+          Break <input type="number" id="durBreak" min="0" max="600"> min
+          &nbsp; Lunch <input type="number" id="durLunch" min="0" max="600"> min
+          <button id="saveDur">Save</button>
+        </div>
+      </div>
+      <div class="set">
+        <label class="sw"><span class="switch"><input type="checkbox" id="awake"><span></span></span> <b>Keep the work PC awake</b></label>
+        <div class="hint">Stops the work PC from sleeping or locking when nobody is using it.</div>
+      </div>
+      <div class="set">
+        <b>Click speed</b>
+        <div class="hint">How fast the work app clicks in Genesys. Choose Slower if the menu sometimes isn't open in time.</div>
+        <div class="row" style="margin-top:4px">
+          <select id="speed"><option value="200">Fastest</option><option value="350">Fast</option><option value="600">Normal</option><option value="900">Slow</option><option value="1500">Slowest</option></select>
+        </div>
+      </div>
+      <div class="set">
+        <label class="sw"><span class="switch"><input type="checkbox" id="shutOn"><span></span></span> <b>Shut down the work PC</b></label>
+        <div class="hint">Every day at the time below. Windows shows a 60-second warning first, and you can cancel it.</div>
+        <div class="row" style="margin-top:4px"><input type="time" id="shutAt" value="18:00"><button id="saveShut">Save</button><button id="cancelShut">Cancel shutdown now</button></div>
+      </div>
+      <div class="set">
+        <b>Pairing code</b>
+        <div class="hint">The code this phone uses. It must be the same as on your PC and work PC. To change it, make a new code in the app on your PC, then enter it here and on the work PC.</div>
+        <div class="row" style="margin-top:4px"><span class="code" id="code"></span><button id="copy">Copy</button></div>
+        <div class="row"><input id="newCodeIn" placeholder="XXXX-XXXX-XXXX-XXXX" style="width:230px"><button id="useCode">Use this code</button><button id="newCode" hidden>Make a new code</button></div>
+      </div>
+      <div class="set">
+        <b>Relay server</b>
+        <div class="hint">Default https://ntfy.sh. Only change this if you run your own ntfy server.</div>
+        <div class="row" style="margin-top:4px"><input id="server" style="width:300px"><button id="saveServer">Save</button></div>
+      </div>
+    </details>
+  </section>
+</main>
+<script>
+// Genesys Status - phone backend.
+// Does in the browser what GenesysStatusControl.exe does on the PC: talks to the work PC
+// through the ntfy relay, with the same pairing code and the same encryption (Fernet format).
+"use strict";
+
+const GS = (() => {
+  const STATUSES = ["Ready", "Not Ready - Break", "Not Ready - Call List", "Not Ready - Care Assist",
+    "Not Ready - Lunch", "Not Ready - Manager's task", "Not Ready - Meeting", "Not Ready - Mentoring",
+    "Not Ready - Pause", "Not Ready - Social Networks", "Not Ready - Statuses", "Not Ready - Technical issues",
+    "Not Ready - Training", "Not Ready - Translate", "Not Ready - Work with duplicates"];
+  const QUICK = ["Ready", "Not Ready - Pause", "Not Ready - Break", "Not Ready - Lunch"];
+  const DEFAULT_SERVER = "https://ntfy.sh";
+  const ANSWER_TIMEOUT = 2000, PING_EVERY = 4 * 60 * 1000;
+  const ALPHA = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const enc = new TextEncoder(), dec = new TextDecoder();
+
+  // ---------------------------------------------------------------- storage (per phone)
+  const store = {
+    get(k) { try { return localStorage.getItem("gs." + k) || ""; } catch { return ""; } },
+    set(k, v) { try { localStorage.setItem("gs." + k, v); } catch {} },
+  };
+
+  // ---------------------------------------------------------------- code + crypto
+  function normCode(c) {
+    c = String(c || "").toUpperCase().replace(/\s+/g, "").replace(/-/g, "")
+      .replace(/O/g, "0").replace(/[IL]/g, "1");
+    if (c.length !== 16) return "";
+    for (const ch of c) if (!ALPHA.includes(ch)) return "";
+    return c;
+  }
+  function formatCode(c) { c = normCode(c); return c ? c.slice(0, 4) + "-" + c.slice(4, 8) + "-" + c.slice(8, 12) + "-" + c.slice(12) : ""; }
+  const sha256 = async s => new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(s)));
+  const hex = b => Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
+  function b64url(bytes) {
+    let s = ""; for (const b of bytes) s += String.fromCharCode(b);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_");
+  }
+  function unb64url(t) {
+    t = t.trim().replace(/-/g, "+").replace(/_/g, "/");
+    while (t.length % 4) t += "=";
+    const s = atob(t), o = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) o[i] = s.charCodeAt(i);
+    return o;
+  }
+
+  let link = null; // {topic, hmacKey, aesKey}
+  async function derive(code) {
+    const n = normCode(code);
+    const t = await sha256("gsr-topic|" + n), k = await sha256("gsr-key|" + n);
+    return {
+      topic: "gs-" + hex(t.slice(0, 16)),
+      hmacKey: await crypto.subtle.importKey("raw", k.slice(0, 16), {name: "HMAC", hash: "SHA-256"}, false, ["sign", "verify"]),
+      aesKey: await crypto.subtle.importKey("raw", k.slice(16, 32), {name: "AES-CBC"}, false, ["encrypt", "decrypt"]),
+    };
+  }
+  async function encrypt(obj) {
+    const iv = crypto.getRandomValues(new Uint8Array(16));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-CBC", iv}, link.aesKey, enc.encode(JSON.stringify(obj))));
+    const body = new Uint8Array(1 + 8 + 16 + ct.length);
+    body[0] = 0x80;
+    new DataView(body.buffer).setBigUint64(1, BigInt(Math.floor(Date.now() / 1000)));
+    body.set(iv, 9); body.set(ct, 25);
+    const sig = new Uint8Array(await crypto.subtle.sign("HMAC", link.hmacKey, body));
+    const out = new Uint8Array(body.length + 32); out.set(body); out.set(sig, body.length);
+    return b64url(out);
+  }
+  async function decrypt(token, keys) {
+    const d = unb64url(token);
+    if (d.length < 1 + 8 + 16 + 16 + 32 || d[0] !== 0x80) throw new Error("bad token");
+    const body = d.slice(0, d.length - 32), sig = d.slice(d.length - 32);
+    if (!await crypto.subtle.verify("HMAC", keys.hmacKey, sig, body)) throw new Error("bad signature");
+    const pt = await crypto.subtle.decrypt({name: "AES-CBC", iv: d.slice(9, 25)}, keys.aesKey, body.slice(25));
+    return JSON.parse(dec.decode(pt));
+  }
+
+  // ---------------------------------------------------------------- state (same shape as the PC app)
+  const S = {
+    code: "", server: "", relayOK: false, state: null, stateAt: 0, logs: [],
+    agentSeen: 0, lastHeard: 0, offline: "", waits: new Map(), pingAt: 0,
+    diagParts: null, diagText: "", seen: new Set(), es: null, gen: 0,
+  };
+  const clock = () => new Date().toLocaleTimeString("en-US", {hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true});
+  function log(s) { S.logs.push(clock() + "  " + s); if (S.logs.length > 80) S.logs = S.logs.slice(-80); }
+
+  function onMessage(m, pubTime) {
+    const live = Date.now() / 1000 - pubTime < 60;
+    if (pubTime > S.lastHeard) S.lastHeard = pubTime;
+    if (m.type === "bye" && live) {
+      S.agentSeen = 0; S.offline = "The app on the work PC was closed, or the PC is shutting down."; S.waits.clear();
+      log("work PC: app closed"); return;
+    }
+    if (live && ["state", "ack", "diag", "shutdown_warning"].includes(m.type)) {
+      if (S.offline || !S.agentSeen) log("work PC answered - online");
+      S.agentSeen = Date.now(); S.offline = ""; S.waits.clear();
+    }
+    if (m.type === "shutdown_warning" && live) log("work PC: scheduled shutdown in 60 seconds (Settings > Cancel shutdown to stop it)");
+    if (m.type === "diag" && live) {
+      if (!S.diagParts || m.part === 0) S.diagParts = {};
+      S.diagParts[m.part] = m.text;
+      if (Object.keys(S.diagParts).length === m.parts) {
+        let t = ""; for (let i = 0; i < m.parts; i++) t += S.diagParts[i];
+        S.diagText = "Received " + clock() + "\n" + t; S.diagParts = null;
+        log("diagnostics received from the work PC");
+      }
+    }
+    if (m.type !== "state") return;
+    const prev = S.state;
+    // messages can arrive out of order: never replace a newer state with an older one
+    if (prev && m.boot && m.boot === prev.boot && m.seq <= prev.seq) return;
+    S.state = m; S.stateAt = Date.now();
+    const la = m.last_action;
+    if (live && la && JSON.stringify(la) !== JSON.stringify(prev && prev.last_action)) {
+      log(`work PC: ${la.status} - ${la.ok ? "OK" : "FAILED"} (${la.msg}) [${la.source} ${la.at}]`);
+    }
+  }
+
+  function listen() {
+    if (S.es) { S.es.close(); S.es = null; }
+    if (!link) return;
+    const gen = ++S.gen;
+    const es = new EventSource(`${S.server}/${link.topic}-state/sse?since=latest`);
+    S.es = es;
+    es.onopen = () => { if (gen !== S.gen) return; if (!S.relayOK) { S.relayOK = true; ping(); } };
+    es.onerror = () => { if (gen !== S.gen) return; S.relayOK = false; };
+    es.onmessage = async e => {
+      if (gen !== S.gen) return;
+      let ev; try { ev = JSON.parse(e.data); } catch { return; }
+      if (ev.event !== "message" || S.seen.has(ev.id)) return;
+      S.seen.add(ev.id); if (S.seen.size > 500) S.seen = new Set(Array.from(S.seen).slice(-250));
+      try { onMessage(await decrypt(ev.message || "", link), ev.time || 0); } catch {}
+    };
+  }
+
+  async function send(cmd, quiet) {
+    if (!link) throw new Error("Enter your pairing code first (Settings).");
+    cmd = Object.assign({}, cmd, {id: Date.now().toString(16) + Math.random().toString(16).slice(2, 6), ts: Math.floor(Date.now() / 1000)});
+    let what = cmd.type + (cmd.status ? " " + cmd.status : "");
+    if (cmd.type === "ping") what = "ping";
+    S.waits.set(cmd.id, {at: Date.now(), what});
+    try {
+      const r = await fetch(`${S.server}/${link.topic}-cmd`, {method: "POST", body: await encrypt(cmd)});
+      if (!r.ok) throw new Error("relay answered " + r.status);
+    } catch (e) {
+      S.waits.delete(cmd.id); log("send failed: " + e.message); throw e;
+    }
+    if (!quiet) {
+      const t = {set_status: `set status -> ${cmd.status}`, set_schedule: "timers updated", in_minutes: `${cmd.status} in ${cmd.minutes} min`,
+        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown",
+        diag: "asked the work PC for diagnostics (takes up to 30 seconds)"}[cmd.type];
+      log(cmd.type === "diag" ? t : "sent: " + (t || cmd.type));
+    }
+  }
+  function ping() { S.pingAt = Date.now(); send({type: "ping"}, true).catch(() => {}); }
+
+  // the "are you there?" loop and answer timeouts
+  setInterval(() => {
+    if (!link) return;
+    const late = [];
+    for (const [id, w] of S.waits) if (Date.now() - w.at > ANSWER_TIMEOUT) { late.push(w.what); S.waits.delete(id); }
+    if (late.length) {
+      S.agentSeen = 0;
+      S.offline = "No answer within 2 seconds. The app there may be closed, or the PC is off, asleep or offline.";
+      for (const w of late) log(w === "ping" ? "no answer yet from the work PC" : "no answer yet from the work PC for: " + w);
+    }
+    if (S.relayOK && document.visibilityState === "visible" && Date.now() - S.pingAt > PING_EVERY) ping();
+  }, 500);
+
+  // iPhone pauses pages in the background: reconnect and check again when it comes back
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible" || !link) return;
+    if (!S.es || S.es.readyState === 2) listen();
+    if (Date.now() - S.pingAt > 3000) ping();
+  });
+
+  async function connect() {
+    S.state = null; S.relayOK = false; S.agentSeen = 0; S.offline = ""; S.waits.clear(); S.seen.clear();
+    link = normCode(S.code) ? await derive(S.code) : null;
+    listen();
+  }
+
+  // ---------------------------------------------------------------- the same calls the PC window makes
+  async function api(path, body) {
+    switch (path) {
+      case "/api/view":
+        return {
+          relay_ok: S.relayOK, state: S.state, logs: S.logs, now: Math.floor(Date.now() / 1000),
+          state_age: S.state ? (Date.now() - S.stateAt) / 1000 : 0,
+          online: !!S.agentSeen && !S.offline, offline_reason: S.offline,
+          checking: !S.agentSeen && !S.offline, last_heard: S.lastHeard, diag: S.diagText,
+          code: S.code, server: S.server, statuses: STATUSES, quick: QUICK, no_code: !link,
+        };
+      case "/api/cmd":
+        try { await send(body, false); return {ok: true}; } catch (e) { return {ok: false, error: e.message}; }
+      case "/api/setcode": {
+        const c = formatCode(body.code);
+        if (!c) return {ok: false, error: "That is not a valid code. It looks like XXXX-XXXX-XXXX-XXXX."};
+        S.code = c; store.set("code", c); log("pairing code saved on this phone"); await connect();
+        return {ok: true};
+      }
+      case "/api/server": {
+        const s = String(body.server || "").trim().replace(/\/+$/, "");
+        if (!/^https:\/\//.test(s)) return {ok: false, error: "The address must start with https://"};
+        S.server = s; store.set("server", s); log("relay server set to " + s); await connect();
+        return {ok: true};
+      }
+      default:
+        return {ok: true};
+    }
+  }
+
+  S.code = formatCode(store.get("code"));
+  S.server = store.get("server") || DEFAULT_SERVER;
+  const ready = connect();
+  return {api, ready};
+})();
+
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const short = s => s.replace("Not Ready - ", "");
+const api = GS.api;
+
+let view = null, fetchedAt = 0, timers = [], schedOn = true, sentAt = 0, built = false;
+let editing = {server: false, dur: false, shut: false};
+
+function cmd(o) { return api("/api/cmd", o).then(r => { if (!r.ok) alert(r.error || "Failed"); return r; }); }
+
+function setStatus(s, btn) {
+  if (btn) { btn.classList.add("flash"); setTimeout(() => btn.classList.remove("flash"), 900); }
+  cmd({type: "set_status", status: s});
+}
+
+function pushTimers() {
+  sentAt = Math.floor(Date.now() / 1000);
+  renderTimers();
+  cmd({type: "set_schedule", schedule: timers, schedule_enabled: schedOn});
+}
+
+function fill(sel, list, value) {
+  list.forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = s; sel.appendChild(o); });
+  sel.value = value;
+}
+
+function build(v) {
+  v.quick.forEach(s => {
+    const b = document.createElement("button");
+    b.textContent = short(s);
+    b.className = s === "Ready" ? "q-ready" : "q-nr";
+    b.onclick = () => setStatus(s, b);
+    $("quick").appendChild(b);
+  });
+  fill($("other"), v.statuses, "Not Ready - Meeting");
+  fill($("tStatus"), v.statuses, "Not Ready - Lunch");
+  fill($("inStatus"), v.statuses, "Not Ready - Break");
+  built = true;
+}
+
+const pad = n => String(n).padStart(2, "0");
+const H12 = {hour: "numeric", minute: "2-digit", hour12: true};
+const H12S = {hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true};
+function hhmmTo12(t) { const [h, m] = t.split(":").map(Number); return ((h % 12) || 12) + ":" + pad(m) + " " + (h < 12 ? "AM" : "PM"); }
+function fmtDur(s) { s = Math.max(0, Math.floor(s)); return pad(Math.floor(s / 3600)) + ":" + pad(Math.floor(s / 60) % 60) + ":" + pad(s % 60); }
+
+function repeatLabel(t) {
+  if (t.repeat === "once") {
+    const today = new Date(), d = t.date ? new Date(t.date + "T00:00") : null;
+    const day = !d ? "" : (d.toDateString() === today.toDateString() ? "today" : d.toLocaleDateString([], {weekday: "short", day: "numeric", month: "numeric"}));
+    return "Once " + day;
+  }
+  return "Every day";
+}
+
+function renderTimers() {
+  const tb = $("timers");
+  tb.innerHTML = "";
+  if (!timers.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">No timers. Add one below, e.g. 1:00 PM → Lunch, every day.</td></tr>'; return; }
+  timers.forEach(t => {
+    const tr = document.createElement("tr");
+    if (!t.enabled) tr.className = "offr";
+    tr.innerHTML = `<td class="time">${hhmmTo12(t.time)}</td><td class="st"></td><td>${repeatLabel(t)}</td>
+      <td><label class="switch"><input type="checkbox" ${t.enabled ? "checked" : ""}><span></span></label></td>
+      <td><button class="x" title="Remove">×</button></td>`;
+    tr.querySelector(".st").textContent = t.status;
+    if (t.quick) tr.querySelector(".st").insertAdjacentHTML("beforeend", '<span class="tag">quick</span>');
+    tr.querySelector("input").onchange = e => { t.enabled = e.target.checked; pushTimers(); };
+    tr.querySelector(".x").onclick = () => { timers = timers.filter(x => x !== t); pushTimers(); };
+    tb.appendChild(tr);
+  });
+}
+
+function workNow() {
+  // the work PC's clock, estimated from its last message (so clock differences don't matter)
+  const st = view && view.state;
+  if (!st) return Date.now() / 1000;
+  // no answer from the work PC: freeze every timer at the moment it was last heard from
+  if (!view.online || !view.relay_ok) return st.ts;
+  return st.ts + view.state_age + (Date.now() - fetchedAt) / 1000;
+}
+
+function renderHeader() {
+  const v = view; if (!v) return;
+  const st = v.state, age = st ? v.state_age + (Date.now() - fetchedAt) / 1000 : null;
+  let cls = "", txt, sub = "";
+  const heard = v.last_heard ? new Date(v.last_heard * 1000).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit", hour12: true}) : "";
+  if (!v.relay_ok) { txt = "No connection — check this PC's internet"; }
+  else if (v.online) { cls = "on"; txt = "Work PC online"; sub = "Last update " + (st ? new Date(Date.now() - v.state_age * 1000).toLocaleTimeString("en-US", H12) : "just now"); }
+  else if (v.offline_reason) { cls = "off"; txt = "Work PC not responding"; sub = v.offline_reason + (heard ? " Last heard from: " + heard + "." : ""); }
+  else { txt = "Checking the work PC…"; sub = "Waiting for it to answer."; }
+  $("dot").className = "dot " + cls;
+  $("conn").textContent = txt;
+  $("connSub").textContent = sub;
+  $("chans").style.opacity = v.online && v.relay_ok ? "1" : ".45";
+  if (st && (!v.online || !v.relay_ok)) $("connSub").textContent += (sub ? " " : "") + "Timers are paused until it answers.";
+
+  const ch = $("chans");
+  const s = (st && st.status) || {}, since = (st && st.since) || {};
+  const keys = Object.keys(s).sort();
+  let html = "";
+  if (st && !keys.length) html = '<div class="sub">Could not read the status from Genesys (changing it still works).</div>';
+  keys.forEach(k => {
+    const ready = s[k].toLowerCase().startsWith("ready");
+    const el = since[k] ? fmtDur(workNow() - since[k]) : "";
+    const est = st.since_est && st.since_est[k] ? '<span class="tag" title="Genesys did not show a timer; counted by the app">est.</span>' : "";
+    html += `<div class="chan ${ready ? "r" : "n"}"><div class="k">${k === "email" ? "Email" : k}${est}</div><div class="v"></div><div class="t">${el}</div></div>`;
+  });
+  // redraw whenever any status text changes (not only the colour), timers are updated separately
+  const shape = html.replace(/<div class="t">[^<]*<\/div>/g, "") + keys.map(k => s[k] + "|" + (since[k] ? 1 : 0)).join("~");
+  if (ch.dataset.h !== shape) {
+    ch.innerHTML = html;
+    ch.dataset.h = shape;
+    ch.querySelectorAll(".v").forEach((d, i) => d.textContent = s[keys[i]]);
+  } else {
+    ch.querySelectorAll(".t").forEach((d, i) => d.textContent = since[keys[i]] ? fmtDur(workNow() - since[keys[i]]) : "");
+  }
+
+  let next = st ? "Next: " + (st.next || "—") : "";
+  if (st && st.shutdown_on && st.shutdown_at) next += "  ·  Shutdown " + hhmmTo12(st.shutdown_at);
+  if (st && st.pending_return) {
+    const left = st.pending_return.at - workNow();
+    if (left > 0) next += "  ·  " + short(st.pending_return.from) + " ends in " + fmtDur(left);
+  }
+  $("next").textContent = next;
+  $("cancelRet").style.display = st && st.pending_return ? "" : "none";
+
+  // "Later" preview, counted from the start of the current minute
+  const m = parseInt($("inMin").value, 10);
+  if (m > 0) {
+    const d = new Date(Math.floor(workNow() / 60) * 60000 + m * 60000);
+    $("inPreview").textContent = "→ at " + d.toLocaleTimeString("en-US", H12);
+  } else $("inPreview").textContent = "";
+}
+
+function render(v) {
+  if (!built) build(v);
+  const st = v.state;
+  if (st && st.ts >= sentAt) {
+    const next = JSON.stringify(st.schedule || []);
+    if (next !== JSON.stringify(timers)) { timers = st.schedule || []; renderTimers(); }
+    schedOn = !!st.schedule_enabled;
+    $("schedOn").checked = schedOn;
+    $("awake").checked = !!st.keep_awake;
+    $("shutOn").checked = !!st.shutdown_on;
+    if (st.click_delay_ms && document.activeElement !== $("speed")) $("speed").value = String(st.click_delay_ms);
+    if (!editing.shut && st.shutdown_at) $("shutAt").value = st.shutdown_at;
+    const d = st.durations || {};
+    if (!editing.dur) { $("durBreak").value = d["Not Ready - Break"] || 0; $("durLunch").value = d["Not Ready - Lunch"] || 0; }
+    const sel = $("inStatus").value, dm = d[sel];
+    $("durHint").textContent = dm ? `${short(sel)} lasts ${dm} min, then it switches to Pause automatically.` : "";
+  }
+  const log = $("log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+  log.textContent = (v.logs || []).join("\n");
+  if (atEnd) log.scrollTop = log.scrollHeight;
+  $("code").textContent = v.code || "not set";
+  $("setup").hidden = !v.no_code;
+  $("diag").textContent = v.diag || "";
+  if (!editing.server) $("server").value = v.server;
+  renderHeader();
+}
+
+async function poll() {
+  try { view = await api("/api/view"); fetchedAt = Date.now(); render(view); }
+  catch (e) { $("conn").textContent = "App stopped — close this window and start it again"; }
+  setTimeout(poll, 700);
+}
+setInterval(renderHeader, 1000);
+
+$("refresh").onclick = () => cmd({type: "ping"});
+$("diagBtn").onclick = () => cmd({type: "diag"});
+$("setOther").onclick = () => setStatus($("other").value);
+$("cancelRet").onclick = () => cmd({type: "cancel_return"});
+$("inGo").onclick = () => {
+  const m = parseInt($("inMin").value, 10);
+  if (!(m >= 1 && m <= 600)) return alert("Enter 1 to 600 minutes.");
+  cmd({type: "in_minutes", status: $("inStatus").value, minutes: m});
+};
+$("inMin").oninput = renderHeader;
+$("inStatus").onchange = () => view && render(view);
+$("tAdd").onclick = () => {
+  const tm = $("tTime").value;
+  if (!/^\d{2}:\d{2}$/.test(tm)) return alert("Pick a time first.");
+  const t = {id: Math.random().toString(16).slice(2, 10), time: tm, status: $("tStatus").value, repeat: $("tRepeat").value, enabled: false};
+  if (t.repeat === "once") {
+    const now = new Date(), [h, m] = tm.split(":").map(Number), d = new Date(now);
+    d.setHours(h, m, 0, 0);
+    if (d <= now) d.setDate(d.getDate() + 1);
+    t.date = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  timers.push(t);
+  timers.sort((a, b) => ((a.date || "") + a.time).localeCompare((b.date || "") + b.time));
+  pushTimers();
+};
+$("schedOn").onchange = e => { schedOn = e.target.checked; pushTimers(); };
+$("speed").onchange = e => cmd({type: "set_settings", click_delay_ms: parseInt(e.target.value, 10)});
+$("shutOn").onchange = e => cmd({type: "set_settings", shutdown_on: e.target.checked});
+$("shutAt").onfocus = () => editing.shut = true;
+$("saveShut").onclick = () => cmd({type: "set_settings", shutdown_at: $("shutAt").value, shutdown_on: $("shutOn").checked}).then(() => setTimeout(() => editing.shut = false, 3000));
+$("cancelShut").onclick = () => cmd({type: "cancel_shutdown"});
+$("awake").onchange = e => cmd({type: "set_settings", keep_awake: e.target.checked});
+for (const id of ["durBreak", "durLunch"]) { $(id).onfocus = () => editing.dur = true; }
+$("saveDur").onclick = () => {
+  const d = {}, b = parseInt($("durBreak").value, 10), l = parseInt($("durLunch").value, 10);
+  if (b > 0) d["Not Ready - Break"] = b;
+  if (l > 0) d["Not Ready - Lunch"] = l;
+  const keep = (view.state && view.state.durations) || {};
+  for (const k in keep) if (k !== "Not Ready - Break" && k !== "Not Ready - Lunch") d[k] = keep[k];
+  cmd({type: "set_settings", durations: d}).then(() => setTimeout(() => editing.dur = false, 3000));
+};
+$("server").onfocus = () => editing.server = true;
+$("saveServer").onclick = async () => {
+  if (!confirm("Change the relay server? The work PC must use the same server.")) return;
+  const r = await api("/api/server", {server: $("server").value});
+  if (!r.ok) alert(r.error); editing.server = false;
+};
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(view.code); }
+  catch { const r = document.createRange(); r.selectNodeContents($("code")); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand("copy"); }
+  $("copy").textContent = "Copied ✓"; setTimeout(() => $("copy").textContent = "Copy", 1500);
+};
+$("useCode").onclick = async () => {
+  const r = await api("/api/setcode", {code: $("newCodeIn").value});
+  if (!r.ok) return alert(r.error);
+  $("newCodeIn").value = "";
+};
+$("newCode").onclick = async () => {
+  if (!confirm("Make a new pairing code? The work PC stops listening to this app until you enter the new code there too.")) return;
+  await api("/api/newcode", {});
+};
+$("setupGo").onclick = async () => {
+  const r = await api("/api/setcode", {code: $("setupCode").value});
+  $("setupErr").textContent = r.ok ? "" : r.error;
+};
+GS.ready.then(poll);
+</script>
+</body>
+</html>
