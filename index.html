@@ -151,6 +151,14 @@ button.danger.armed{background:var(--bad);color:#fff}
   </section>
 
   <section class="card">
+    <h2>This PC <span>— the PC running this control app</span></h2>
+    <div class="row" style="margin-top:0">
+      <button id="rustdeskHome">Start RustDesk on this PC</button>
+      <span class="hint">Opens RustDesk here so you can connect to this PC from elsewhere.</span>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>Activity</h2>
     <pre class="log" id="log"></pre>
   </section>
@@ -353,7 +361,7 @@ const GS = (() => {
     cmd = Object.assign({}, cmd, {id: Date.now().toString(16) + Math.random().toString(16).slice(2, 6), ts: Math.floor(Date.now() / 1000)});
     let what = cmd.type + (cmd.status ? " " + cmd.status : "");
     if (cmd.type === "ping") what = "ping";
-    const slow = {refresh: 1, diag: 1, set_status: 1, in_minutes: 1};
+    const slow = {refresh: 1, diag: 1, set_status: 1, in_minutes: 1, start_rustdesk_home: 1};
     if (!slow[cmd.type]) S.waits.set(cmd.id, {at: Date.now(), what});
     try {
       const r = await fetch(`${S.server}/${link.topic}-cmd`, {method: "POST", body: await encrypt(cmd)});
@@ -363,7 +371,7 @@ const GS = (() => {
     }
     if (!quiet) {
       const t = {set_status: `set status -> ${cmd.status}`, set_schedule: "timers updated", in_minutes: `${cmd.status} in ${cmd.minutes} min`,
-        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown", shutdown_now: "shut down the work PC now (60-second countdown)", start_rustdesk: "start RustDesk on the work PC",
+        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown", shutdown_now: "shut down the work PC now (60-second countdown)", start_rustdesk: "start RustDesk on the work PC", start_rustdesk_home: "start RustDesk on this PC",
         diag: "asked the work PC for diagnostics (takes up to 30 seconds)"}[cmd.type];
       log(cmd.type === "diag" ? t : "sent: " + (t || cmd.type));
     }
@@ -600,6 +608,7 @@ $("shutNow").onclick = () => {
 };
 $("shutCancel").onclick = () => cmd({type: "cancel_shutdown"});
 $("rustdesk").onclick = () => cmd({type: "start_rustdesk"});
+$("rustdeskHome").onclick = () => cmd({type: "start_rustdesk_home"});
 $("refresh").onclick = () => cmd({type: "refresh"});
 $("diagBtn").onclick = () => cmd({type: "diag"});
 $("setOther").onclick = () => setStatus($("other").value);
