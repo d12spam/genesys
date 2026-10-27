@@ -132,14 +132,26 @@ button.danger.armed{background:var(--bad);color:#fff}
   </section>
 
   <section class="card">
+    <h2>Timers</h2>
+    <label class="sw" style="margin-bottom:10px"><span class="switch"><input type="checkbox" id="schedOn"><span></span></span> <b>Run timers</b></label>
+    <table><thead><tr><th>Status</th><th>Time</th><th>Repeat</th><th>On</th><th></th></tr></thead><tbody id="timerRows"></tbody></table>
+    <div class="empty" id="timerEmpty" hidden>No timers yet. Add one below.</div>
+    <div class="row">
+      <select id="tStatus"></select>
+      <input type="time" id="tTime" value="09:00">
+      <select id="tRepeat"><option value="daily">Every day</option><option value="once">Once</option></select>
+      <button class="primary" id="tAdd">Add timer</button>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>Work PC</h2>
     <div class="row" style="margin-top:0">
       <button id="rustdesk">Start RustDesk</button>
       <button class="danger" id="shutNow">Shut down now</button>
-      <button class="danger" id="restartNow">Restart now</button>
     </div>
     <div class="row">
-      <select id="powWhen"><option value="shutdown_in">Shut down</option><option value="restart_in">Restart</option></select>
+      <select id="powWhen"><option value="shutdown_in">Shut down</option></select>
       <span>in</span>
       <input type="number" id="powMin" value="30" min="1" max="600">
       <span>minutes</span>
@@ -147,15 +159,16 @@ button.danger.armed{background:var(--bad);color:#fff}
       <span class="preview" id="powPreview"></span>
     </div>
     <div class="nextline"><span class="sub" id="schedLine" hidden></span><button class="link" id="cancelSched" hidden>Cancel scheduled</button></div>
-    <div class="hint">Shut down and restart give a 60-second countdown you can cancel here or on the work PC.</div>
+    <div class="hint">Shut down gives a 60-second countdown you can cancel here or on the work PC.</div>
   </section>
 
   <section class="card">
     <h2>This PC <span>— the PC running this control app</span></h2>
     <div class="row" style="margin-top:0">
       <button id="rustdeskHome">Start RustDesk on this PC</button>
-      <span class="hint">Opens RustDesk here so you can connect to this PC from elsewhere.</span>
+      <button class="danger" id="restartHome">Restart now</button>
     </div>
+    <div class="hint">Start RustDesk opens RustDesk here so you can connect in. Restart now restarts this PC after a 60-second countdown.</div>
   </section>
 
   <section class="card">
@@ -361,7 +374,7 @@ const GS = (() => {
     cmd = Object.assign({}, cmd, {id: Date.now().toString(16) + Math.random().toString(16).slice(2, 6), ts: Math.floor(Date.now() / 1000)});
     let what = cmd.type + (cmd.status ? " " + cmd.status : "");
     if (cmd.type === "ping") what = "ping";
-    const slow = {refresh: 1, diag: 1, set_status: 1, in_minutes: 1, start_rustdesk_home: 1};
+    const slow = {refresh: 1, diag: 1, set_status: 1, in_minutes: 1, start_rustdesk_home: 1, restart_home: 1};
     if (!slow[cmd.type]) S.waits.set(cmd.id, {at: Date.now(), what});
     try {
       const r = await fetch(`${S.server}/${link.topic}-cmd`, {method: "POST", body: await encrypt(cmd)});
@@ -371,7 +384,7 @@ const GS = (() => {
     }
     if (!quiet) {
       const t = {set_status: `set status -> ${cmd.status}`, set_schedule: "timers updated", in_minutes: `${cmd.status} in ${cmd.minutes} min`,
-        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown", shutdown_now: "shut down the work PC now (60-second countdown)", start_rustdesk: "start RustDesk on the work PC", start_rustdesk_home: "start RustDesk on this PC",
+        set_settings: "settings", cancel_return: "cancel automatic Pause", cancel_shutdown: "cancel shutdown", shutdown_now: "shut down the work PC now (60-second countdown)", start_rustdesk: "start RustDesk on the work PC", start_rustdesk_home: "start RustDesk on this PC", restart_home: "restart this PC (60-second countdown)",
         diag: "asked the work PC for diagnostics (takes up to 30 seconds)"}[cmd.type];
       log(cmd.type === "diag" ? t : "sent: " + (t || cmd.type));
     }
@@ -472,6 +485,7 @@ function build(v) {
   const last = (v.state && v.state.last_status) || "Not Ready - Statuses";
   fill($("other"), v.statuses, v.statuses.includes(last) ? last : "Not Ready - Statuses");
   fill($("inStatus"), v.statuses, "Not Ready - Break");
+  fill($("tStatus"), v.statuses, "Not Ready - Break");
   built = true;
 }
 
@@ -561,10 +575,42 @@ function renderHeader() {
   $("powPreview").textContent = pm > 0 ? "→ at " + new Date(workNow() * 1000 + pm * 60000).toLocaleTimeString("en-US", H12) : "";
 }
 
+function pushTimers(timers, enabled) { cmd({type: "set_schedule", schedule: timers, schedule_enabled: enabled}); }
+function tLabel(t) { return t.repeat === "once" ? ("Once" + (t.date ? " · " + t.date : "")) : "Every day"; }
+function renderTimers(st) {
+  if (document.activeElement !== $("schedOn")) $("schedOn").checked = !!st.schedule_enabled;
+  const timers = (st.schedule || []).filter(t => !t.quick);
+  const rows = $("timerRows");
+  const sig = JSON.stringify(timers) + "|" + !!st.schedule_enabled;
+  if (rows.dataset.sig === sig) return;
+  rows.dataset.sig = sig;
+  rows.innerHTML = "";
+  $("timerEmpty").hidden = timers.length > 0;
+  timers.forEach(t => {
+    const tr = document.createElement("tr");
+    if (!t.enabled) tr.className = "offr";
+    const cell = text => { const c = document.createElement("td"); c.textContent = text; return c; };
+    tr.appendChild(cell(short(t.status)));
+    const tc = cell(hhmmTo12(t.time)); tc.className = "time"; tr.appendChild(tc);
+    tr.appendChild(cell(tLabel(t)));
+    const en = document.createElement("td");
+    const lab = document.createElement("label"); lab.className = "switch";
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!t.enabled;
+    cb.onchange = () => pushTimers(timers.map(o => o.id === t.id ? Object.assign({}, o, {enabled: cb.checked}) : o), $("schedOn").checked);
+    const sp = document.createElement("span"); lab.appendChild(cb); lab.appendChild(sp); en.appendChild(lab); tr.appendChild(en);
+    const del = document.createElement("td");
+    const x = document.createElement("button"); x.className = "x"; x.textContent = "×";
+    x.onclick = () => pushTimers(timers.filter(o => o.id !== t.id), $("schedOn").checked);
+    del.appendChild(x); tr.appendChild(del);
+    rows.appendChild(tr);
+  });
+}
+
 function render(v) {
   if (!built) build(v);
   const st = v.state;
   if (st) {
+    renderTimers(st);
     $("awake").checked = !!st.keep_awake;
     $("shutOn").checked = !!st.shutdown_on;
     if (st.click_delay_ms && document.activeElement !== $("speed")) $("speed").value = String(st.click_delay_ms);
@@ -622,17 +668,36 @@ $("inGo").onclick = () => {
 };
 $("inMin").oninput = renderHeader;
 $("inStatus").onchange = () => view && render(view);
-// Restart now (two taps to confirm, like Shut down now)
+$("tAdd").onclick = () => {
+  const st = view && view.state;
+  const timers = ((st && st.schedule) || []).filter(t => !t.quick);
+  const time = $("tTime").value;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return alert("Enter a valid time (HH:MM).");
+  const t = {id: "t" + Date.now().toString(16), time, status: $("tStatus").value, repeat: $("tRepeat").value, enabled: true};
+  if (t.repeat === "once") {
+    const now = new Date(), [h, mm] = time.split(":").map(Number);
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, mm, 0);
+    if (d <= now) d.setDate(d.getDate() + 1);
+    t.date = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  pushTimers(timers.concat([t]), $("schedOn").checked);
+};
+$("schedOn").onchange = e => {
+  const st = view && view.state;
+  const timers = ((st && st.schedule) || []).filter(t => !t.quick);
+  pushTimers(timers, e.target.checked);
+};
+// Restart MY PC now (two taps to confirm)
 let reArm = 0;
-$("restartNow").onclick = () => {
-  const b = $("restartNow");
+$("restartHome").onclick = () => {
+  const b = $("restartHome");
   if (Date.now() - reArm > 4000) {
     reArm = Date.now(); b.textContent = "Tap again to restart"; b.classList.add("armed");
     setTimeout(() => { if (Date.now() - reArm >= 4000) { b.textContent = "Restart now"; b.classList.remove("armed"); } }, 4100);
     return;
   }
   reArm = 0; b.textContent = "Restart now"; b.classList.remove("armed");
-  cmd({type: "restart_now"});
+  cmd({type: "restart_home"});
 };
 $("powMin").oninput = renderHeader;
 $("powGo").onclick = () => {
